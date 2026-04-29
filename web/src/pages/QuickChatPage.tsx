@@ -15,7 +15,7 @@ interface Message {
 const ENDPOINT_KEY = "hermes_chat_endpoint";
 const MODEL_KEY = "hermes_chat_model";
 const DEFAULT_ENDPOINT = "http://localhost:11434";
-const DEFAULT_MODEL = "hermes3";
+const DEFAULT_MODEL = "hermes3:latest";
 const SYSTEM_PROMPT =
   "You are Hermes, a helpful AI assistant created by Nous Research. You are knowledgeable, concise, and friendly.";
 
