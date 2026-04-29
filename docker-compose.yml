@@ -1,0 +1,92 @@
+#
+# docker-compose.yml for Hermes Agent
+#
+# Usage:
+#   HERMES_UID=$(id -u) HERMES_GID=$(id -g) docker compose up -d
+#
+# Set HERMES_UID / HERMES_GID to the host user that owns ~/.hermes so
+# files created inside the container stay readable/writable on the host.
+# The entrypoint remaps the internal `hermes` user to these values via
+# usermod/groupmod + gosu.
+#
+# Security notes:
+#   - The dashboard service binds to 127.0.0.1 by default. It stores API
+#     keys; exposing it on LAN without auth is unsafe. If you want remote
+#     access, use an SSH tunnel or put it behind a reverse proxy that
+#     adds authentication — do NOT pass --insecure --host 0.0.0.0.
+#   - The gateway's API server is off unless you uncomment API_SERVER_KEY
+#     and API_SERVER_HOST. See docs/user-guide/api-server.md before doing
+#     this on an internet-facing host.
+#
+services:
+  gateway:
+    build: .
+    image: hermes-agent
+    container_name: hermes
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ~/.hermes:/opt/data
+    environment:
+      - HERMES_UID=${HERMES_UID:-10000}
+      - HERMES_GID=${HERMES_GID:-10000}
+      # To expose the OpenAI-compatible API server beyond localhost,
+      # uncomment BOTH lines (API_SERVER_KEY is mandatory for auth):
+      # - API_SERVER_HOST=0.0.0.0
+      # - API_SERVER_KEY=${API_SERVER_KEY}
+    command: ["gateway", "run"]
+
+  dashboard:
+    image: hermes-agent
+    container_name: hermes-dashboard
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - gateway
+    volumes:
+      - ~/.hermes:/opt/data
+    environment:
+      - HERMES_UID=${HERMES_UID:-10000}
+      - HERMES_GID=${HERMES_GID:-10000}
+    # Localhost-only. For remote access, tunnel via `ssh -L 9119:localhost:9119`.
+    command: ["dashboard", "--host", "127.0.0.1", "--no-open"]
+
+  # Telegram bot gateway service.
+  #
+  # Set the required environment variables before starting:
+  #   TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_USER_ID, OPENROUTER_API_KEY
+  #
+  # See .env.telegram.example for the full list of options.
+  telegram-bot:
+    build: .
+    image: hermes-agent
+    container_name: hermes-telegram
+    restart: unless-stopped
+    ports:
+      # Expose the webhook port when TELEGRAM_WEBHOOK_URL is set.
+      # Remove this mapping when using long-polling mode.
+      - "${TELEGRAM_WEBHOOK_PORT:-8443}:${TELEGRAM_WEBHOOK_PORT:-8443}"
+    volumes:
+      - ~/.hermes:/opt/data
+      - hermes-telegram-sessions:/app/sessions
+    environment:
+      - HERMES_UID=${HERMES_UID:-10000}
+      - HERMES_GID=${HERMES_GID:-10000}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_ADMIN_USER_ID=${TELEGRAM_ADMIN_USER_ID:-}
+      - TELEGRAM_ALLOWED_USERS=${TELEGRAM_ALLOWED_USERS:-}
+      - TELEGRAM_WEBHOOK_URL=${TELEGRAM_WEBHOOK_URL:-}
+      - TELEGRAM_WEBHOOK_PORT=${TELEGRAM_WEBHOOK_PORT:-8443}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - HERMES_DEFAULT_MODEL=${HERMES_DEFAULT_MODEL:-anthropic/claude-3.5-sonnet}
+      - TELEGRAM_RATE_LIMIT_PER_MINUTE=${TELEGRAM_RATE_LIMIT_PER_MINUTE:-30}
+      - TELEGRAM_SESSION_DB=/app/sessions/telegram_sessions.db
+      - GATEWAY_ALLOW_ALL_USERS=${GATEWAY_ALLOW_ALL_USERS:-false}
+    command: ["python", "-m", "src.api.telegram_gateway"]
+    profiles:
+      # Start with: docker compose --profile telegram up -d
+      - telegram
+
+volumes:
+  hermes-telegram-sessions:
