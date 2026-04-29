@@ -66,6 +66,7 @@ import SkillsPage from "@/pages/SkillsPage";
 import ChatPage from "@/pages/ChatPage";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import QuickChatPage from "@/pages/QuickChatPage";
 import { useI18n } from "@/i18n";
 import { PluginPage, PluginSlot, usePlugins } from "@/plugins";
 import type { PluginManifest } from "@/plugins";
@@ -95,6 +96,7 @@ const CHAT_NAV_ITEM: NavItem = {
 const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   "/": RootRedirect,
   "/sessions": SessionsPage,
+  "/quick-chat": QuickChatPage,
   "/analytics": AnalyticsPage,
   "/logs": LogsPage,
   "/cron": CronPage,
@@ -118,6 +120,11 @@ const BUILTIN_NAV_REST: NavItem[] = [
     labelKey: "sessions",
     label: "Sessions",
     icon: MessageSquare,
+  },
+  {
+    path: "/quick-chat",
+    label: "Quick Chat",
+    icon: Zap,
   },
   {
     path: "/analytics",
