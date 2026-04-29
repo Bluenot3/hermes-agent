@@ -50,3 +50,43 @@ services:
       - HERMES_GID=${HERMES_GID:-10000}
     # Localhost-only. For remote access, tunnel via `ssh -L 9119:localhost:9119`.
     command: ["dashboard", "--host", "127.0.0.1", "--no-open"]
+
+  # Telegram bot gateway service.
+  #
+  # Set the required environment variables before starting:
+  #   TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_USER_ID, OPENROUTER_API_KEY
+  #
+  # See .env.telegram.example for the full list of options.
+  telegram-bot:
+    build: .
+    image: hermes-agent
+    container_name: hermes-telegram
+    restart: unless-stopped
+    ports:
+      # Expose the webhook port when TELEGRAM_WEBHOOK_URL is set.
+      # Remove this mapping when using long-polling mode.
+      - "${TELEGRAM_WEBHOOK_PORT:-8443}:${TELEGRAM_WEBHOOK_PORT:-8443}"
+    volumes:
+      - ~/.hermes:/opt/data
+      - hermes-telegram-sessions:/app/sessions
+    environment:
+      - HERMES_UID=${HERMES_UID:-10000}
+      - HERMES_GID=${HERMES_GID:-10000}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_ADMIN_USER_ID=${TELEGRAM_ADMIN_USER_ID:-}
+      - TELEGRAM_ALLOWED_USERS=${TELEGRAM_ALLOWED_USERS:-}
+      - TELEGRAM_WEBHOOK_URL=${TELEGRAM_WEBHOOK_URL:-}
+      - TELEGRAM_WEBHOOK_PORT=${TELEGRAM_WEBHOOK_PORT:-8443}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - HERMES_DEFAULT_MODEL=${HERMES_DEFAULT_MODEL:-anthropic/claude-3.5-sonnet}
+      - TELEGRAM_RATE_LIMIT_PER_MINUTE=${TELEGRAM_RATE_LIMIT_PER_MINUTE:-30}
+      - TELEGRAM_SESSION_DB=/app/sessions/telegram_sessions.db
+      - GATEWAY_ALLOW_ALL_USERS=${GATEWAY_ALLOW_ALL_USERS:-false}
+    command: ["python", "-m", "src.api.telegram_gateway"]
+    profiles:
+      # Start with: docker compose --profile telegram up -d
+      - telegram
+
+volumes:
+  hermes-telegram-sessions:
